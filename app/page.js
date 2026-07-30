@@ -142,6 +142,9 @@ export default function Home() {
             </div>
 
             {error && <div className="error-box">{error}</div>}
+            {results?.data_completeness_warning && (
+              <div className="warning-box">{results.data_completeness_warning}</div>
+            )}
 
             {results && (
               <>

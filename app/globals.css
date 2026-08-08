@@ -7,12 +7,12 @@ body { font-family: 'IBM Plex Sans', sans-serif; background: #F5F6F4; color: #14
 .gauge-number { font-family: 'IBM Plex Mono', monospace; font-weight: 600; fill: #14181F; }
 .gauge-label { font-family: 'IBM Plex Mono', monospace; font-weight: 500; fill: #8A8F98; letter-spacing: 0.08em; }
 
-.sidebar { background: #14181F; color: #F5F6F4; width: 232px; flex-shrink: 0; padding: 24px 16px; display: flex; flex-direction: column; gap: 28px; }
+.sidebar { background: #14181F; color: #F5F6F4; width: 232px; flex-shrink: 0; padding: 24px 16px; display: flex; flex-direction: column; gap: 20px; }
 .wordmark { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; padding: 0 8px; }
 .wordmark span { color: #C9822E; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #9AA0AA; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #9AA0AA; border: none; background: transparent; width: 100%; text-align: left; font-family: 'IBM Plex Sans', sans-serif; cursor: pointer; }
 .nav-item.active { background: #1F2530; color: #F5F6F4; }
-.nav-item.disabled { color: #565D6B; }
+.nav-item.disabled { color: #565D6B; cursor: default; }
 .nav-badge { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em; color: #565D6B; border: 1px solid #2A303C; border-radius: 4px; padding: 2px 5px; }
 
 .main { flex: 1; padding: 28px 32px 60px; max-width: 980px; }
@@ -58,6 +58,35 @@ table.risk-table { width: 100%; border-collapse: collapse; margin-top: 18px; bac
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.auth-card { background: white; border: 1px solid #E3E1DA; border-radius: 16px; padding: 32px; width: 100%; max-width: 380px; }
+.auth-input { border: 1px solid #E3E1DA; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; }
+.auth-submit { background: #14181F; color: white; border: none; border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; font-family: 'IBM Plex Sans', sans-serif; cursor: pointer; margin-top: 4px; }
+.auth-submit:disabled { opacity: 0.6; }
+.auth-switch { margin-top: 18px; font-size: 12.5px; color: #6B7280; text-align: center; }
+.auth-switch button { background: none; border: none; color: #C9822E; font-weight: 600; cursor: pointer; font-size: 12.5px; font-family: 'IBM Plex Sans', sans-serif; }
+
+.logout-btn { margin-top: auto; display: flex; align-items: center; gap: 8px; background: transparent; border: 1px solid #2A303C; color: #9AA0AA; border-radius: 8px; padding: 9px 12px; font-size: 12.5px; font-family: 'IBM Plex Sans', sans-serif; cursor: pointer; }
+
+.chart-card { background: white; border: 1px solid #E3E1DA; border-radius: 12px; padding: 20px; margin-top: 16px; }
+.bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 16px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar-label { font-size: 9px; color: #8A8F98; font-family: 'IBM Plex Mono', monospace; }
+
+.chat-card { background: white; border: 1px solid #E3E1DA; border-radius: 12px; padding: 18px; margin-top: 16px; }
+.chat-thread { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; }
+.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+.chat-user { align-self: flex-end; background: #14181F; color: #F5F6F4; border-bottom-right-radius: 3px; }
+.chat-assistant { align-self: flex-start; background: #F5F6F4; border: 1px solid #E3E1DA; border-bottom-left-radius: 3px; }
+.chat-input-row { display: flex; gap: 8px; margin-top: 14px; }
+.chat-input { flex: 1; border: 1px solid #E3E1DA; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: 'IBM Plex Sans', sans-serif; }
+.chat-send { background: #14181F; color: white; border: none; border-radius: 8px; width: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+.coming-soon-card { background: white; border: 1px solid #E3E1DA; border-radius: 12px; padding: 32px; margin-top: 20px; text-align: center; }
+.coming-soon-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; }
+.coming-soon-text { font-size: 13px; color: #6B7280; margin-top: 8px; }
 
 @media (max-width: 720px) {
   .app-shell { flex-direction: column; }

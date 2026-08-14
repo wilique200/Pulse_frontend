@@ -9,7 +9,7 @@ const modules = [
   { key: 'customer', label: 'Customer Intelligence', icon: Users, active: true },
   { key: 'data', label: 'Data Analyst', icon: BarChart3, active: true },
   { key: 'docs', label: 'Document Q&A', icon: FileText, active: false },
-  { key: 'expense', label: 'Expense Extractor', icon: Receipt, active: false },
+  { key: 'expense', label: 'Expense Extractor', icon: Receipt, active: true },
 ];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -63,9 +63,21 @@ export default function Home() {
   const [daResults, setDaResults] = useState(null);
   const [daLoading, setDaLoading] = useState(false);
   const [daError, setDaError] = useState(null);
+  const [daFile, setDaFile] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [targetColumn, setTargetColumn] = useState('');
+  const [predictResults, setPredictResults] = useState(null);
+  const [predictLoading, setPredictLoading] = useState(false);
+  const [predictError, setPredictError] = useState(null);
+
+  // Expense Extractor state
+  const [expenseParsed, setExpenseParsed] = useState(null);
+  const [expenseLoading, setExpenseLoading] = useState(false);
+  const [expenseError, setExpenseError] = useState(null);
+  const [expenseSaving, setExpenseSaving] = useState(false);
+  const [savedExpenses, setSavedExpenses] = useState([]);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -110,6 +122,10 @@ export default function Home() {
     setDaError(null);
     setDaResults(null);
     setChatMessages([]);
+    setPredictResults(null);
+    setPredictError(null);
+    setTargetColumn('');
+    setDaFile(file);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -128,6 +144,81 @@ export default function Home() {
       setDaError(err.message || 'Something went wrong analyzing the file.');
     } finally {
       setDaLoading(false);
+    }
+  }
+
+  async function handlePredict() {
+    if (!targetColumn || !daFile) return;
+    setPredictLoading(true);
+    setPredictError(null);
+    setPredictResults(null);
+
+    const formData = new FormData();
+    formData.append('file', daFile);
+    formData.append('target_column', targetColumn);
+
+    try {
+      const res = await fetch(`${API_URL}/api/data-analyst/predict`, {
+        method: 'POST', headers: authHeaders(), body: formData,
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Request failed (${res.status})`);
+      }
+      setPredictResults(await res.json());
+    } catch (err) {
+      setPredictError(err.message || 'Something went wrong training the model.');
+    } finally {
+      setPredictLoading(false);
+    }
+  }
+
+  async function handleReceiptUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setExpenseLoading(true);
+    setExpenseError(null);
+    setExpenseParsed(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/api/expenses/parse`, {
+        method: 'POST', headers: authHeaders(), body: formData,
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Request failed (${res.status})`);
+      }
+      setExpenseParsed(await res.json());
+    } catch (err) {
+      setExpenseError(err.message || 'Something went wrong reading the receipt.');
+    } finally {
+      setExpenseLoading(false);
+    }
+  }
+
+  async function handleSaveExpense() {
+    if (!expenseParsed) return;
+    setExpenseSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/expenses`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(expenseParsed),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Request failed (${res.status})`);
+      }
+      const data = await res.json();
+      setSavedExpenses((list) => [data.record, ...list]);
+      setExpenseParsed(null);
+    } catch (err) {
+      setExpenseError(err.message || 'Something went wrong saving this expense.');
+    } finally {
+      setExpenseSaving(false);
     }
   }
 
@@ -304,6 +395,84 @@ export default function Home() {
                   </div>
                 )}
 
+                {daResults.summary.correlations?.length > 0 && (
+                  <div className="chart-card">
+                    <span className="threshold-title">Strongest correlations</span>
+                    <table className="risk-table" style={{ marginTop: 12 }}>
+                      <thead><tr><th>Column A</th><th>Column B</th><th>Correlation</th></tr></thead>
+                      <tbody>
+                        {daResults.summary.correlations.map((c, i) => (
+                          <tr key={i}>
+                            <td>{c.column_a}</td>
+                            <td>{c.column_b}</td>
+                            <td className="risk-num" style={{ color: Math.abs(c.correlation) >= 0.5 ? '#C9822E' : '#565D6B' }}>{c.correlation}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {daResults.summary.category_breakdowns?.map((b) => (
+                  <div className="chart-card" key={b.category_column}>
+                    <span className="threshold-title">Breakdown by {b.category_column}</span>
+                    <table className="risk-table" style={{ marginTop: 12 }}>
+                      <thead>
+                        <tr>
+                          <th>{b.category_column}</th>
+                          <th>Count</th>
+                          {Object.keys(b.groups[0] || {}).filter((k) => k !== 'group' && k !== 'count').map((k) => <th key={k}>{k}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {b.groups.map((g, i) => (
+                          <tr key={i}>
+                            <td>{g.group}</td>
+                            <td className="id-cell">{g.count}</td>
+                            {Object.keys(g).filter((k) => k !== 'group' && k !== 'count').map((k) => <td key={k}>{g[k]}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+
+                <div className="chart-card">
+                  <span className="threshold-title">Predict a column</span>
+                  <div className="threshold-note" style={{ marginTop: 4 }}>Pick a column to train a quick model against — uses the rest of the data to predict it.</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <select className="chat-input" value={targetColumn} onChange={(e) => setTargetColumn(e.target.value)} style={{ flex: 1 }}>
+                      <option value="">Choose a column…</option>
+                      {daResults.summary.columns.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                    <button className="auth-submit" style={{ marginTop: 0, padding: '9px 16px' }} onClick={handlePredict} disabled={!targetColumn || predictLoading}>
+                      {predictLoading ? 'Training…' : 'Train'}
+                    </button>
+                  </div>
+
+                  {predictError && <div className="error-box" style={{ marginTop: 12 }}>{predictError}</div>}
+
+                  {predictResults && (
+                    <div style={{ marginTop: 16 }}>
+                      <div className="card-row" style={{ marginTop: 0 }}>
+                        <div className="stat-card"><div><div className="stat-value" style={{ fontSize: 16 }}>{predictResults.task_type}</div><div className="stat-label">Task type</div></div></div>
+                        <div className="stat-card"><div><div className="stat-value">{predictResults.primary_metric.value}{predictResults.task_type === 'classification' ? '%' : ''}</div><div className="stat-label">{predictResults.primary_metric.name}</div></div></div>
+                        <div className="stat-card"><div><div className="stat-value">{predictResults.secondary_metric.value}</div><div className="stat-label">{predictResults.secondary_metric.name}</div></div></div>
+                      </div>
+                      {predictResults.top_features.length > 0 && (
+                        <>
+                          <div className="threshold-title" style={{ marginTop: 16, display: 'block' }}>Most influential columns</div>
+                          <div className="spectrum-legend" style={{ marginTop: 10, flexDirection: 'column', gap: 8 }}>
+                            {predictResults.top_features.map((f) => (
+                              <span key={f.feature}>{f.feature} — <span className="risk-num">{f.importance}</span></span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="chat-card">
                   <span className="threshold-title">Ask your data</span>
                   <div className="chat-thread" style={{ marginTop: 12 }}>
@@ -322,6 +491,61 @@ export default function Home() {
                   </div>
                 </div>
               </>
+            )}
+          </>
+        )}
+
+        {view === 'expense' && (
+          <>
+            <div className="page-title">Expense Extractor</div>
+            <div className="page-sub">Upload a receipt or invoice photo — Gemini reads it directly, no manual entry.</div>
+
+            <div className="upload-box">
+              <input type="file" accept="image/jpeg,image/png,image/webp" id="receipt-upload" onChange={handleReceiptUpload} style={{ display: 'none' }} />
+              <label htmlFor="receipt-upload" style={{ cursor: 'pointer', display: 'block' }}>
+                {expenseLoading
+                  ? <Loader2 size={22} color="#8A8F98" className="spin" style={{ margin: '0 auto' }} />
+                  : <Upload size={22} color="#8A8F98" style={{ margin: '0 auto' }} />}
+                <div className="upload-title">{expenseLoading ? 'Reading receipt…' : 'Click to upload a receipt photo'}</div>
+                <div className="upload-sub">JPG, PNG, or WEBP — vendor, date, amount, and category are extracted automatically</div>
+              </label>
+            </div>
+
+            {expenseError && <div className="error-box">{expenseError}</div>}
+
+            {expenseParsed && (
+              <div className="chart-card">
+                <span className="threshold-title">Review before saving</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+                  <input className="auth-input" placeholder="Vendor" value={expenseParsed.vendor || ''} onChange={(e) => setExpenseParsed({ ...expenseParsed, vendor: e.target.value })} />
+                  <input className="auth-input" type="date" value={expenseParsed.date || ''} onChange={(e) => setExpenseParsed({ ...expenseParsed, date: e.target.value })} />
+                  <input className="auth-input" type="number" step="0.01" placeholder="Amount" value={expenseParsed.amount ?? ''} onChange={(e) => setExpenseParsed({ ...expenseParsed, amount: parseFloat(e.target.value) })} />
+                  <select className="auth-input" value={expenseParsed.category || ''} onChange={(e) => setExpenseParsed({ ...expenseParsed, category: e.target.value })}>
+                    {['Software', 'Travel', 'Office Supplies', 'Meals', 'Utilities', 'Marketing', 'Professional Services', 'Other'].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <button className="auth-submit" onClick={handleSaveExpense} disabled={expenseSaving}>
+                    {expenseSaving ? 'Saving…' : 'Save expense'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {savedExpenses.length > 0 && (
+              <table className="risk-table">
+                <thead><tr><th>Vendor</th><th>Date</th><th>Amount</th><th>Category</th></tr></thead>
+                <tbody>
+                  {savedExpenses.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.vendor}</td>
+                      <td className="id-cell">{r.expense_date}</td>
+                      <td className="risk-num">{r.currency} {r.amount}</td>
+                      <td style={{ color: '#6B7280' }}>{r.category}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </>
         )}
